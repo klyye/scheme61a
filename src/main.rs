@@ -35,18 +35,16 @@ impl Display for SchemeErr {
 
 impl Error for SchemeErr {}
 
+/// technically a lexer?
 fn tokenize(expr: &str) -> &[Token] {
     todo!()
 }
 
-// scheme_reader.py#L105
+// scheme_reader.py#L105 scheme_read function
 // in the original, scheme_read returns and removes the next complete expression in src
 // i will instead leave it immutable
-fn scheme_read(buffer: &[Token]) -> Result<Expr, SchemeErr> {
-    todo!()
-}
-
-fn read_tail(buffer: &[Token]) -> Result<Expr, SchemeErr> {
+// Instead of the mutually recursive approach used in the course, I will do an iterative approach
+fn parse_expr(buffer: &[Token]) -> Result<Expr, SchemeErr> {
     todo!()
 }
 
@@ -62,9 +60,62 @@ fn main() {
 mod tests {
     use crate::*;
 
+    mod test_tokenize {
+        use super::Token::*;
+        use super::*;
+
+        #[test]
+        fn test_tokenize() {
+            let output = tokenize("(+ 10 5)");
+            assert_eq!(
+                output,
+                [
+                    ParenOpen,
+                    Symbol("+".to_string()),
+                    Integer(10),
+                    Integer(5),
+                    ParenClose
+                ]
+            );
+            let tokens = tokenize("(- 1 (23 4))");
+            assert_eq!(
+                tokens,
+                [
+                    ParenOpen,
+                    Symbol("-".to_string()),
+                    Integer(1),
+                    ParenOpen,
+                    Integer(23),
+                    Integer(4),
+                    ParenClose,
+                    ParenClose
+                ]
+            );
+        }
+
+        #[test]
+        fn test_tokenize_empty_expr() {
+            let output = tokenize("()");
+            assert_eq!(output, [ParenOpen, ParenClose])
+        }
+
+        #[test]
+        fn test_tokenize_empty_str() {
+            let output = tokenize("");
+            assert_eq!(output, [])
+        }
+
+        #[test]
+        fn test_tokenize_numbered_names() {
+            let output = tokenize("1be");
+            assert_eq!(output, [Symbol("1be".to_string())]);
+            let output2 = tokenize("belgium234");
+            assert_eq!(output2, [Symbol("belgium234".to_string())])
+        }
+    }
+
     // Tests cases transpiled from 61A by Gemini TODO fix them
     // Helper functions to keep tests concise.
-    // Replace `Expr` and `Token` with your actual AST and Lexer enums.
     fn nil() -> Expr {
         Expr::Nil
     }
@@ -84,23 +135,37 @@ mod tests {
         Expr::Pair(Box::new(car), Box::new(cdr))
     }
 
-    fn read_line(line: &str) -> Result<Expr, SchemeErr> {
-        scheme_read(&tokenize(line))
+    fn parse_str_expr(line: &str) -> Result<Expr, SchemeErr> {
+        parse_expr(tokenize(line))
     }
 
     #[test]
     fn test_case_1() {
-        assert_eq!(scheme_read(tokenize("nil")), Ok(nil()));
-        assert_eq!(scheme_read(tokenize("1")), Ok(int(1)));
-        assert_eq!(scheme_read(tokenize("true")), Ok(boolean(true)));
+        assert_eq!(parse_str_expr("nil"), Ok(nil()));
+        assert_eq!(parse_str_expr("1"), Ok(int(1)));
+        assert_eq!(parse_str_expr("true"), Ok(boolean(true)));
 
-        assert_eq!(read_line("3"), Ok(int(3)));
-        assert_eq!(read_line("-123"), Ok(int(-123)));
-        assert_eq!(read_line("1.25"), Ok(float(1.25)));
-        assert_eq!(read_line("true"), Ok(boolean(true)));
-        assert_eq!(read_line("(a)"), Ok(pair(sym("a"), nil())));
+        assert_eq!(parse_str_expr("3"), Ok(int(3)));
+        assert_eq!(parse_str_expr("-123"), Ok(int(-123)));
+        assert_eq!(parse_str_expr("1.25"), Ok(float(1.25)));
+        assert_eq!(parse_str_expr("true"), Ok(boolean(true)));
+        assert_eq!(parse_str_expr("(a)"), Ok(pair(sym("a"), nil())));
 
-        assert!(read_line(")").is_err());
+        assert!(parse_str_expr(")").is_err());
+    }
+
+    #[test]
+    fn test_parser_basic() {
+        let tokens = tokenize("(+ 1 (23 4))");
+        let expected = pair(sym("+"), pair(int(1), pair(int(23), pair(int(4), nil()))));
+        assert_eq!(parse_expr(tokens), Ok(expected));
+    }
+
+    #[test]
+    fn test_parser_parens() {
+        let tokens = tokenize("(+ (1 23) 4)");
+        let expected = pair(sym("+"), pair(pair(int(1), pair(int(23), nil())), pair(int(4), nil())));
+        assert_eq!(parse_expr(tokens), Ok(expected));
     }
 
     #[test]
@@ -114,7 +179,7 @@ mod tests {
 
         let expected = pair(int(23), pair(int(4), nil()));
         // TODO because scheme_read no longer consumes from input buffer, this test case is now wrong
-        assert_eq!(scheme_read(src), Ok(expected));
+        assert_eq!(parse_expr(src), Ok(expected));
 
         assert_eq!(src.current(), &Token::ParenClose);
     }
@@ -124,38 +189,37 @@ mod tests {
         let src = tokenize("(18 6)");
         let expected = pair(int(18), pair(int(6), nil()));
 
-        assert_eq!(scheme_read(src), Ok(expected.clone()));
-        assert_eq!(read_line("(18 6)"), Ok(expected)); // Shorter version of above
+        assert_eq!(parse_expr(src), Ok(expected.clone()));
+        assert_eq!(parse_str_expr("(18 6)"), Ok(expected)); // Shorter version of above
     }
 
     #[test]
     fn test_case_4() {
-        let mut src1 = tokenize(")");
-        assert_eq!(read_tail(&mut src1), Ok(nil()));
+        let src1 = tokenize(")");
+        assert_eq!(parse_expr(src1), Ok(nil()));
 
-        let mut src2 = tokenize("1 2 3)");
+        let src2 = tokenize("1 2 3)");
         let expected2 = pair(int(1), pair(int(2), pair(int(3), nil())));
-        assert_eq!(read_tail(&mut src2), Ok(expected2));
+        assert_eq!(parse_expr(src2), Ok(expected2));
 
-        let mut src3 = tokenize("2 (3 4))");
+        let src3 = tokenize("2 (3 4))");
         let expected3 = pair(int(2), pair(pair(int(3), pair(int(4), nil())), nil()));
-        assert_eq!(read_tail(&mut src3), Ok(expected3));
+        assert_eq!(parse_expr(src3), Ok(expected3));
     }
 
     #[test]
     fn test_case_5() {
-        let mut src = tokenize("(1 2 3)");
-        assert!(read_tail(&mut src).is_err());
+        let src = tokenize("(1 2 3)");
+        assert!(parse_expr(src).is_err());
 
-        assert!(read_line("((1 2 3)").is_err());
+        assert!(parse_str_expr("((1 2 3)").is_err());
     }
 
     #[test]
     fn test_case_6() {
         let src = tokenize("(+ 1 2)");
         let expected = pair(sym("+"), pair(int(1), pair(int(2), nil())));
-
-        assert_eq!(scheme_read(src), Ok(expected));
+        assert_eq!(parse_expr(src), Ok(expected));
     }
 
     #[test]
@@ -167,15 +231,15 @@ mod tests {
                 pair(int(1), nil()),
             ),
         );
-        assert_eq!(read_line("(+ (- 2 3) 1)"), Ok(expected));
+        assert_eq!(parse_str_expr("(+ (- 2 3) 1)"), Ok(expected));
     }
 
     #[test]
     fn test_case_8() {
-        assert_eq!(read_line("()"), Ok(nil()));
+        assert_eq!(parse_str_expr("()"), Ok(nil()));
 
         let expected_nested = pair(pair(sym("a"), nil()), nil());
-        assert_eq!(read_line("((a))"), Ok(expected_nested));
+        assert_eq!(parse_str_expr("((a))"), Ok(expected_nested));
 
         let expected_math = pair(
             sym("+"),
@@ -187,6 +251,6 @@ mod tests {
                 ),
             ),
         );
-        assert_eq!(read_line("(+ 1 (- 2 3) 8)"), Ok(expected_math));
+        assert_eq!(parse_str_expr("(+ 1 (- 2 3) 8)"), Ok(expected_math));
     }
 }
