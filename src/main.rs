@@ -14,6 +14,7 @@ enum Expr {
     Pair(Box<Expr>, Box<Expr>),
 }
 
+#[derive(Debug, PartialEq)]
 enum Token {
     ParenOpen,
     ParenClose,
@@ -34,20 +35,18 @@ impl Display for SchemeErr {
 
 impl Error for SchemeErr {}
 
-fn tokenize(expr: String) -> Vec<String> {
-    expr.replace("(", " ( ")
-        .replace(")", " ) ")
-        .split_whitespace()
-        .map(|x| x.to_string())
-        .collect()
-}
-
-// scheme_reader.py#L105
-fn scheme_read(buffer: &mut Vec<String>) -> Result<Expr, SchemeErr> {
+fn tokenize(expr: &str) -> &[Token] {
     todo!()
 }
 
-fn read_tail(buffer: &mut Vec<String>) -> Result<Expr, SchemeErr> {
+// scheme_reader.py#L105
+// in the original, scheme_read returns and removes the next complete expression in src
+// i will instead leave it immutable
+fn scheme_read(buffer: &[Token]) -> Result<Expr, SchemeErr> {
+    todo!()
+}
+
+fn read_tail(buffer: &[Token]) -> Result<Expr, SchemeErr> {
     todo!()
 }
 
@@ -62,18 +61,6 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use crate::*;
-
-    #[test]
-    fn test_tokenize() {
-        let output = tokenize("(+ 10 5)".to_string());
-        assert_eq!(output, ["(", "+", "10", "5", ")"])
-    }
-
-    #[test]
-    fn test_tokenize_empty() {
-        let output = tokenize("()".to_string());
-        assert_eq!(output, ["(", ")"])
-    }
 
     // Tests cases transpiled from 61A by Gemini TODO fix them
     // Helper functions to keep tests concise.
@@ -98,17 +85,14 @@ mod tests {
     }
 
     fn read_line(line: &str) -> Result<Expr, SchemeErr> {
-        scheme_read(&mut tokenize(line.to_string()))
+        scheme_read(&tokenize(line))
     }
 
     #[test]
     fn test_case_1() {
-        assert_eq!(scheme_read(&mut (tokenize("nil".to_string()))), Ok(nil()));
-        assert_eq!(scheme_read(&mut (tokenize("1".to_string()))), Ok(int(1)));
-        assert_eq!(
-            scheme_read(&mut (tokenize("true".to_string()))),
-            Ok(boolean(true))
-        );
+        assert_eq!(scheme_read(tokenize("nil")), Ok(nil()));
+        assert_eq!(scheme_read(tokenize("1")), Ok(int(1)));
+        assert_eq!(scheme_read(tokenize("true")), Ok(boolean(true)));
 
         assert_eq!(read_line("3"), Ok(int(3)));
         assert_eq!(read_line("-123"), Ok(int(-123)));
@@ -116,57 +100,51 @@ mod tests {
         assert_eq!(read_line("true"), Ok(boolean(true)));
         assert_eq!(read_line("(a)"), Ok(pair(sym("a"), nil())));
 
-        // Python's SyntaxError maps to Rust's Result::Err
         assert!(read_line(")").is_err());
     }
 
     #[test]
     fn test_case_2() {
-        let tokens = tokenize("(+ 1 (23 4)) (".to_string());
+        let tokens = tokenize("(+ 1 (23 4)) (");
         let mut src = tokens;
 
-        // Assuming your Lexer uses an enum for Tokens
-        assert_eq!(src.current(), Some(&Token::ParenOpen));
-        assert_eq!(src.pop_first(), Some(Token::ParenOpen));
+        assert_eq!(src[0], Token::ParenOpen);
+        assert_eq!(src[1], Token::Symbol("+".to_string()));
+        assert_eq!(src[2], Token::Integer(1));
 
-        assert_eq!(src.current(), Some(&Token::Symbol("+".to_string())));
-        assert_eq!(src.pop_first(), Some(Token::Symbol("+".to_string())));
-
-        assert_eq!(src.pop_first(), Some(Token::Integer(1)));
-
-        // scheme_read returns and removes the next complete expression in src
         let expected = pair(int(23), pair(int(4), nil()));
-        assert_eq!(scheme_read(&mut src), Ok(expected));
+        // TODO because scheme_read no longer consumes from input buffer, this test case is now wrong
+        assert_eq!(scheme_read(src), Ok(expected));
 
-        assert_eq!(src.current(), Some(&Token::ParenClose));
+        assert_eq!(src.current(), &Token::ParenClose);
     }
 
     #[test]
     fn test_case_3() {
-        let mut src = tokenize("(18 6)".to_string());
+        let src = tokenize("(18 6)");
         let expected = pair(int(18), pair(int(6), nil()));
 
-        assert_eq!(scheme_read(&mut src), Ok(expected.clone()));
+        assert_eq!(scheme_read(src), Ok(expected.clone()));
         assert_eq!(read_line("(18 6)"), Ok(expected)); // Shorter version of above
     }
 
     #[test]
     fn test_case_4() {
-        let mut src1 = tokenize(")".to_string());
+        let mut src1 = tokenize(")");
         assert_eq!(read_tail(&mut src1), Ok(nil()));
 
-        let mut src2 = tokenize("1 2 3)".to_string());
+        let mut src2 = tokenize("1 2 3)");
         let expected2 = pair(int(1), pair(int(2), pair(int(3), nil())));
         assert_eq!(read_tail(&mut src2), Ok(expected2));
 
-        let mut src3 = tokenize("2 (3 4))".to_string());
+        let mut src3 = tokenize("2 (3 4))");
         let expected3 = pair(int(2), pair(pair(int(3), pair(int(4), nil())), nil()));
         assert_eq!(read_tail(&mut src3), Ok(expected3));
     }
 
     #[test]
     fn test_case_5() {
-        let mut src = tokenize("(1 2 3)".to_string());
+        let mut src = tokenize("(1 2 3)");
         assert!(read_tail(&mut src).is_err());
 
         assert!(read_line("((1 2 3)").is_err());
@@ -174,13 +152,10 @@ mod tests {
 
     #[test]
     fn test_case_6() {
-        let mut src = tokenize("(+ 1 2)".to_string());
+        let src = tokenize("(+ 1 2)");
         let expected = pair(sym("+"), pair(int(1), pair(int(2), nil())));
 
-        assert_eq!(scheme_read(&mut src), Ok(expected));
-
-        // Don't forget to remove the closing parenthesis!
-        assert_eq!(src.current(), None);
+        assert_eq!(scheme_read(src), Ok(expected));
     }
 
     #[test]
