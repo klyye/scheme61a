@@ -3,6 +3,7 @@ use std::fmt::{Display, Formatter};
 use std::io;
 // https://stopa.io/post/222
 // https://inst.eecs.berkeley.edu/~cs61a/archive/fa19/proj/scheme_stubbed/
+// https://code.cs61a.org/
 
 #[derive(Debug, PartialEq, Clone)]
 enum Expr {
@@ -44,6 +45,8 @@ fn tokenize(expr: &str) -> &[Token] {
 // in the original, scheme_read returns and removes the next complete expression in src
 // i will instead leave it immutable
 // Instead of the mutually recursive approach used in the course, I will do an iterative approach
+// Evals the FIRST given expr in buffer
+// when doing multiple exprs in the same buffer, slice it where you want to start and pass that in
 fn parse_expr(buffer: &[Token]) -> Result<Expr, SchemeErr> {
     todo!()
 }
