@@ -4,6 +4,11 @@ A rust implementation of the last 61A project.
 ## TODO
 - let's not just copy that random blogpost and actually try to translate the 61a python into rust
 
+### 7/9/26
+uhhhhhh i got lost in the sauce
+- so parse_list, if you see elements in the list, shouldn't consume those from the buffer and should let parse_expr handle them
+- but if you see closing parens, you should consume them. so what gives
+
 ### 7/8/26
 - I now understand why the function signatures of the 61a skeleton are the way they are, the scheme S-expr grammar naturally pushes you towards a parse_expr and parse_list using an iterator
 - actually implement the mutual recursion properly

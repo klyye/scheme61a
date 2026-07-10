@@ -20,6 +20,8 @@ enum Token {
     ParenOpen,
     ParenClose,
     Integer(i64),
+    Float(f64),
+    Bool(bool),
     Symbol(String),
 }
 
@@ -47,6 +49,10 @@ fn tokenize(expr: &str) -> Vec<Token> {
             _ => {
                 if let Ok(num) = x.parse::<i64>() {
                     Token::Integer(num)
+                } else if let Ok(x) = x.parse::<bool>() {
+                    Token::Bool(x)
+                } else if let Ok(x) = x.parse::<f64>() {
+                    Token::Float(x)
                 } else {
                     Token::Symbol(x.to_string())
                 }
@@ -72,8 +78,13 @@ fn parse_expr<'a>(buffer: &mut impl Iterator<Item = &'a Token>) -> Result<Expr, 
     match buffer.next() {
         None => Err(SchemeErr::Reason("Tried to parse empty buffer".to_string())),
         Some(Token::ParenOpen) => parse_list(buffer),
-        Some(Token::ParenClose) => Ok(Expr::Nil),// TODO this is wrong
+        Some(Token::ParenClose) => Ok(Expr::Nil),
+        // Some(Token::ParenClose) => Err(SchemeErr::Reason(
+        //     "Can't start expression with closing parenthesis".to_string(),
+        // )),
         Some(Token::Integer(i)) => Ok(Expr::Integer(*i)),
+        Some(Token::Float(f)) => Ok(Expr::Float(*f)),
+        Some(Token::Bool(b)) => Ok(Expr::Bool(*b)),
         Some(Token::Symbol(s)) => Ok(Expr::Symbol(s.clone())),
     }
 }
@@ -85,11 +96,20 @@ fn parse_expr<'a>(buffer: &mut impl Iterator<Item = &'a Token>) -> Result<Expr, 
 //     nil
 //     >>> read_tail(Buffer(tokenize_lines(['2 3)'])))
 //     Pair(2, Pair(3, nil))
+// parse_list(tokenize['1 2 3 4)'])
+// Pair(1, Pair(2, Pair(3, Pair(4, nil))))
+// parse_list(tokenize['(1))']) -> Pair(Pair(1, nil), nil)
 fn parse_list<'a>(buffer: &mut impl Iterator<Item = &'a Token>) -> Result<Expr, SchemeErr> {
-    Ok(Expr::Pair(
-        Box::new(parse_expr(buffer)?),
-        Box::new(parse_expr(buffer)?),
-    ))
+    match buffer.peekable().peek() {
+        Some(Token::ParenClose) => {
+            buffer.next();
+            Ok(Expr::Nil)
+        }
+        _ => Ok(Expr::Pair(
+            Box::new(parse_expr(buffer)?),
+            Box::new(parse_expr(buffer)?),
+        )),
+    }
 }
 
 fn main() {
