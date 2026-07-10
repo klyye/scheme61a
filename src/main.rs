@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::io;
+use std::iter::Peekable;
 // https://stopa.io/post/222
 // https://inst.eecs.berkeley.edu/~cs61a/archive/fa19/proj/scheme_stubbed/
 // https://code.cs61a.org/
@@ -74,9 +75,11 @@ fn tokenize(expr: &str) -> Vec<Token> {
 //     True
 //     >>> scheme_read(Buffer(tokenize_lines(['(+ 1 2)'])))
 //     Pair('+', Pair(1, Pair(2, nil)))
-fn parse_expr<'a>(buffer: &mut impl Iterator<Item = &'a Token>) -> Result<Expr, SchemeErr> {
+fn parse_expr<'a>(
+    buffer: &mut Peekable<impl Iterator<Item = &'a Token>>,
+) -> Result<Expr, SchemeErr> {
     match buffer.next() {
-        None => Err(SchemeErr::Reason("Tried to parse empty buffer".to_string())),
+        None => Ok(Expr::Nil),
         Some(Token::ParenOpen) => parse_list(buffer),
         Some(Token::ParenClose) => Ok(Expr::Nil),
         // Some(Token::ParenClose) => Err(SchemeErr::Reason(
@@ -99,8 +102,10 @@ fn parse_expr<'a>(buffer: &mut impl Iterator<Item = &'a Token>) -> Result<Expr, 
 // parse_list(tokenize['1 2 3 4)'])
 // Pair(1, Pair(2, Pair(3, Pair(4, nil))))
 // parse_list(tokenize['(1))']) -> Pair(Pair(1, nil), nil)
-fn parse_list<'a>(buffer: &mut impl Iterator<Item = &'a Token>) -> Result<Expr, SchemeErr> {
-    match buffer.peekable().peek() {
+fn parse_list<'a>(
+    buffer: &mut Peekable<impl Iterator<Item = &'a Token>>,
+) -> Result<Expr, SchemeErr> {
+    match buffer.peek() {
         Some(Token::ParenClose) => {
             buffer.next();
             Ok(Expr::Nil)
@@ -184,7 +189,7 @@ mod tests {
 
         // TODO standardize use of parse_str_expr
         fn parse_str_expr(line: &str) -> Result<Expr, SchemeErr> {
-            parse_expr(&mut tokenize(line).iter())
+            parse_expr(&mut tokenize(line).iter().peekable())
         }
 
         fn sym(s: &str) -> Expr {
@@ -212,17 +217,15 @@ mod tests {
 
         #[test]
         fn test_parser_basic() {
-            let tokens = tokenize("(+ 1 (23 4))");
             let expected = pair(
                 sym("+"),
                 pair(Integer(1), pair(Integer(23), pair(Integer(4), Nil))),
             );
-            assert_eq!(parse_expr(&mut tokens.iter()), Ok(expected));
+            assert_eq!(parse_str_expr("(+ 1 (23 4))"), Ok(expected));
         }
 
         #[test]
         fn test_parser_parens() {
-            let tokens = tokenize("(+ (1 23) 4)");
             let expected = pair(
                 sym("+"),
                 pair(
@@ -230,64 +233,51 @@ mod tests {
                     pair(Integer(4), Nil),
                 ),
             );
-            assert_eq!(parse_expr(&mut tokens.iter()), Ok(expected));
+            assert_eq!(parse_str_expr("(+ (1 23) 4)"), Ok(expected));
         }
 
         #[test]
         fn test_case_2() {
-            let src = tokenize("(+ 1 (23 4)) (");
-
-            assert_eq!(src[0], Token::ParenOpen);
-            assert_eq!(src[1], Token::Symbol("+".to_string()));
-            assert_eq!(src[2], Token::Integer(1));
-
             let expected = pair(Integer(23), pair(Integer(4), Nil));
             // TODO okay cs61a had the right idea, we should test the 'current' and 'next' calls
             // on an ITERATOR not the token vector, so revert these tests back
-            assert_eq!(parse_expr(&mut src.iter()), Ok(expected));
+            assert_eq!(parse_str_expr("(+ 1 (23 4)) ("), Ok(expected));
 
             // assert_eq!(src.current(), &Token::ParenClose);
         }
 
         #[test]
         fn test_case_3() {
-            let src = tokenize("(18 6)");
             let expected = pair(Integer(18), pair(Integer(6), Nil));
-
-            assert_eq!(parse_expr(&mut src.iter()), Ok(expected.clone()));
-            assert_eq!(parse_str_expr("(18 6)"), Ok(expected)); // Shorter version of above
+            assert_eq!(parse_str_expr("(18 6)"), Ok(expected));
         }
 
         #[test]
         fn test_case_4() {
-            let src1 = tokenize(")");
-            assert_eq!(parse_expr(&mut src1.iter()), Ok(Nil));
+            assert_eq!(parse_str_expr(")"), Ok(Nil));
 
-            let src2 = tokenize("(1 2 3)");
             let expected2 = pair(Integer(1), pair(Integer(2), pair(Integer(3), Nil)));
-            assert_eq!(parse_expr(&mut src2.iter()), Ok(expected2));
+            assert_eq!(parse_str_expr("(1 2 3)"), Ok(expected2));
 
-            let src3 = tokenize("2 (3 4))");
             let expected3 = pair(
                 Integer(2),
                 pair(pair(Integer(3), pair(Integer(4), Nil)), Nil),
             );
-            assert_eq!(parse_expr(&mut src3.iter()), Ok(expected3));
+            assert_eq!(parse_str_expr("(2 (3 4))"), Ok(expected3));
         }
 
         #[test]
         fn test_case_5() {
             let src = tokenize("(1 2 3)");
-            assert!(parse_expr(&mut src.iter()).is_err());
+            assert!(parse_list(&mut src.iter().peekable()).is_err());
 
             assert!(parse_str_expr("((1 2 3)").is_err());
         }
 
         #[test]
         fn test_case_6() {
-            let src = tokenize("(+ 1 2)");
             let expected = pair(sym("+"), pair(Integer(1), pair(Integer(2), Nil)));
-            assert_eq!(parse_expr(&mut src.iter()), Ok(expected));
+            assert_eq!(parse_str_expr("+ 1 2"), Ok(expected));
         }
 
         #[test]
