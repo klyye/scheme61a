@@ -4,6 +4,9 @@ A rust implementation of the last 61A project.
 ## TODO
 - let's not just copy that random blogpost and actually try to translate the 61a python into rust
 
+### 7/11/26
+We're getting to the point where this warrants separating these into multiple files
+
 ### 7/10/26
 Note that doing iterator.peekable().peek() actually ADVANCES the value in the original iterator. In other words, peekable is returning a 2nd peekable iterator by advancing the original iterator and storing its next() value, and since the call to peekable() isn't saved into a variable it gets throw away. Peekable() doesn't turn the original iterator peekable, it creates a new iterator that's peekable. Confusing!
 
