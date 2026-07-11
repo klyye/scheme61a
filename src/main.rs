@@ -220,7 +220,10 @@ mod tests {
         fn test_parser_basic() {
             let expected = pair(
                 sym("+"),
-                pair(Integer(1), pair(Integer(23), pair(Integer(4), Nil))),
+                pair(
+                    Integer(1),
+                    pair(pair(Integer(23), pair(Integer(4), Nil)), Nil),
+                ),
             );
             assert_eq!(parse_str_expr("(+ 1 (23 4))"), Ok(expected));
         }
@@ -239,12 +242,17 @@ mod tests {
 
         #[test]
         fn test_case_2() {
-            let expected = pair(Integer(23), pair(Integer(4), Nil));
-            // TODO okay cs61a had the right idea, we should test the 'current' and 'next' calls
-            // on an ITERATOR not the token vector, so revert these tests back
-            assert_eq!(parse_str_expr("(+ 1 (23 4)) ("), Ok(expected));
-
-            // assert_eq!(src.current(), &Token::ParenClose);
+            let tokens = tokenize("(+ 1 (23 4)) (");
+            let buffer = &mut (tokens.iter().peekable());
+            let expected = pair(
+                Symbol("+".to_string()),
+                pair(
+                    Integer(1),
+                    pair(pair(Integer(23), pair(Integer(4), Nil)), Nil),
+                ),
+            );
+            assert_eq!(parse_expr(buffer), Ok(expected));
+            assert!(parse_expr(buffer).is_err())
         }
 
         #[test]
@@ -255,7 +263,10 @@ mod tests {
 
         #[test]
         fn test_case_4() {
-            assert_eq!(parse_str_expr(")"), Ok(Nil));
+            assert_eq!(
+                parse_list(&mut [Token::ParenClose].iter().peekable()),
+                Ok(Nil)
+            );
 
             let expected2 = pair(Integer(1), pair(Integer(2), pair(Integer(3), Nil)));
             assert_eq!(parse_str_expr("(1 2 3)"), Ok(expected2));
@@ -278,7 +289,7 @@ mod tests {
         #[test]
         fn test_case_6() {
             let expected = pair(sym("+"), pair(Integer(1), pair(Integer(2), Nil)));
-            assert_eq!(parse_str_expr("+ 1 2"), Ok(expected));
+            assert_eq!(parse_str_expr("(+ 1 2)"), Ok(expected));
         }
 
         #[test]
