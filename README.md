@@ -7,6 +7,8 @@ A rust implementation of the last 61A project.
 ### 7/10/26
 Note that doing iterator.peekable().peek() actually ADVANCES the value in the original iterator. In other words, peekable is returning a 2nd peekable iterator by advancing the original iterator and storing its next() value, and since the call to peekable() isn't saved into a variable it gets throw away. Peekable() doesn't turn the original iterator peekable, it creates a new iterator that's peekable. Confusing!
 
+- Finished Part 1 of the project spec (the reader) and the repl loop, onto the evaluator!
+
 ### 7/9/26
 uhhhhhh i got lost in the sauce
 - so parse_list, if you see elements in the list, shouldn't consume those from the buffer and should let parse_expr handle them
