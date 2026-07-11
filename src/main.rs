@@ -33,7 +33,8 @@ enum SchemeErr {
 
 impl Display for SchemeErr {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        let SchemeErr::Reason(x) = self;
+        write!(f, "{}", x)
     }
 }
 
@@ -119,10 +120,18 @@ fn parse_list<'a>(
 }
 
 fn main() {
+    // todo repl loop, print 'str' and 'repr' equivalents (Display and Debug respectively)
     loop {
         let mut buffer = String::new();
         io::stdin().read_line(&mut buffer).unwrap();
-        println!("{}", buffer)
+        let tokens = tokenize(&buffer);
+        let iterator = &mut tokens.iter().peekable();
+        while iterator.peek().is_some() {
+            match parse_expr(iterator) {
+                Ok(x) => println!("{:?}", x),
+                Err(x) => eprintln!("Error: {}", x),
+            }
+        }
     }
 }
 
@@ -188,7 +197,6 @@ mod tests {
         use super::Expr::*;
         use super::*;
 
-        // TODO standardize use of parse_str_expr
         fn parse_str_expr(line: &str) -> Result<Expr, SchemeErr> {
             parse_expr(&mut tokenize(line).iter().peekable())
         }
