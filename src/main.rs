@@ -79,12 +79,13 @@ fn parse_expr<'a>(
     buffer: &mut Peekable<impl Iterator<Item = &'a Token>>,
 ) -> Result<Expr, SchemeErr> {
     match buffer.next() {
-        None => Ok(Expr::Nil),
+        // None => Ok(Expr::Nil),
+        None => Err(SchemeErr::Reason("Tried to parse empty buffer".to_string())),
         Some(Token::ParenOpen) => parse_list(buffer),
-        Some(Token::ParenClose) => Ok(Expr::Nil),
-        // Some(Token::ParenClose) => Err(SchemeErr::Reason(
-        //     "Can't start expression with closing parenthesis".to_string(),
-        // )),
+        // Some(Token::ParenClose) => Ok(Expr::Nil),
+        Some(Token::ParenClose) => Err(SchemeErr::Reason(
+            "Can't start expression with closing parenthesis".to_string(),
+        )),
         Some(Token::Integer(i)) => Ok(Expr::Integer(*i)),
         Some(Token::Float(f)) => Ok(Expr::Float(*f)),
         Some(Token::Bool(b)) => Ok(Expr::Bool(*b)),
@@ -112,7 +113,7 @@ fn parse_list<'a>(
         }
         _ => Ok(Expr::Pair(
             Box::new(parse_expr(buffer)?),
-            Box::new(parse_expr(buffer)?),
+            Box::new(parse_list(buffer)?),
         )),
     }
 }
