@@ -4,6 +4,11 @@ A rust implementation of the last 61A project.
 ## TODO
 - let's not just copy that random blogpost and actually try to translate the 61a python into rust
 
+### 7/14/26
+Figure out how to do evals for simple cases of builtin functions like +-*/, you may want to bind their names in the global env by default. also checkout scheme_builtins.py
+
+I am addicted to magic the gathering deckbuilding (not even playing the game)
+
 ### 7/11/26
 We're getting to the point where this warrants separating these into multiple files
 

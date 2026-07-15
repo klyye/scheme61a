@@ -127,8 +127,13 @@ impl Env {
     }
 }
 
+
+// da plan: bind the builtins (e.g. + - * / in the default global env
 fn eval(expr: &Expr, env: &mut Env) -> Result<Expr, SchemeErr> {
-    unimplemented!("Implement for Part 2")
+    match expr {
+        Expr::Nil | Expr::Integer(_) | Expr::Float(_) | Expr::Bool(_) | Expr::Symbol(_) => Ok(expr.clone()),
+        Expr::Pair(op, params) => { todo!() }
+    }
 }
 
 fn apply(proc: &Expr, args: &Expr, env: &mut Env) -> Result<Expr, SchemeErr> {
@@ -143,7 +148,7 @@ fn main() {
         let tokens = tokenize(&buffer);
         let iterator = &mut tokens.iter().peekable();
         while iterator.peek().is_some() {
-            match parse_expr(iterator) {
+            match parse_expr(iterator).and_then(|x| eval(&x, &mut Env::global())) {
                 Ok(x) => println!("{:?}", x),
                 Err(x) => eprintln!("Error: {}", x),
             }
@@ -406,6 +411,7 @@ mod tests {
         fn test_basic_math_and_builtins() {
             let mut env = Env::global(); 
 
+            // both the code and its results are of type Expr because Lisp is "homoiconic"
             assert_eq!(eval_str("(+ 2 3)", &mut env), Ok(Integer(5))); 
             assert_eq!(eval_str("(* (+ 3 2) (+ 1 7))", &mut env), Ok(Integer(40))); 
             assert_eq!(eval_str("(+)", &mut env), Ok(Integer(0))); 
