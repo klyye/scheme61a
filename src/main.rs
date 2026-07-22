@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::io;
@@ -120,24 +121,35 @@ fn parse_list<'a>(
 }
 
 // Stubs for Part 2 Evaluation
-struct Env;
+struct Env {
+    bindings: HashMap<String, Expr>,
+}
 impl Env {
     fn global() -> Self {
-        Env
+        Env {
+            bindings: HashMap::new(),
+        }
     }
 }
 
-
-// da plan: bind the builtins (e.g. + - * / in the default global env
+// da plan: bind the builtins (e.g. + - * / in the default global env)
 fn eval(expr: &Expr, env: &mut Env) -> Result<Expr, SchemeErr> {
     match expr {
-        Expr::Nil | Expr::Integer(_) | Expr::Float(_) | Expr::Bool(_) | Expr::Symbol(_) => Ok(expr.clone()),
-        Expr::Pair(op, params) => { todo!() }
+        Expr::Nil | Expr::Integer(_) | Expr::Float(_) | Expr::Bool(_) | Expr::Symbol(_) => {
+            Ok(expr.clone())
+        }
+        Expr::Pair(op, params) => apply(op.as_ref(), params.as_ref(), env),
+        // todo recursively eval inner terms first
     }
 }
 
 fn apply(proc: &Expr, args: &Expr, env: &mut Env) -> Result<Expr, SchemeErr> {
-    unimplemented!("Implement for Part 2")
+    let Expr::Symbol(proc_sym) = proc else {
+        return Err(SchemeErr::Reason(format!("proc {proc:?} is not a Symbol!")));
+    };
+    let body = env.bindings.get(proc_sym);
+    //todo replace replace argnames in body with args (bindings? same mechanism as env bindings)
+    todo!()
 }
 
 fn main() {
@@ -381,7 +393,7 @@ mod tests {
                 sym("quote"),
                 pair(pair(sym("quote"), pair(sym("a"), Nil)), Nil),
             );
-            assert_eq!(parse_str_expr("''a"), Ok(nested_quote)); 
+            assert_eq!(parse_str_expr("''a"), Ok(nested_quote));
 
             assert!(parse_str_expr("')").is_err()); // SyntaxError
         }
@@ -409,25 +421,25 @@ mod tests {
 
         #[test]
         fn test_basic_math_and_builtins() {
-            let mut env = Env::global(); 
+            let mut env = Env::global();
 
             // both the code and its results are of type Expr because Lisp is "homoiconic"
-            assert_eq!(eval_str("(+ 2 3)", &mut env), Ok(Integer(5))); 
-            assert_eq!(eval_str("(* (+ 3 2) (+ 1 7))", &mut env), Ok(Integer(40))); 
-            assert_eq!(eval_str("(+)", &mut env), Ok(Integer(0))); 
-            assert_eq!(eval_str("(*)", &mut env), Ok(Integer(1))); 
+            assert_eq!(eval_str("(+ 2 3)", &mut env), Ok(Integer(5)));
+            assert_eq!(eval_str("(* (+ 3 2) (+ 1 7))", &mut env), Ok(Integer(40)));
+            assert_eq!(eval_str("(+)", &mut env), Ok(Integer(0)));
+            assert_eq!(eval_str("(*)", &mut env), Ok(Integer(1)));
 
-            assert_eq!(eval_str("(odd? 13)", &mut env), Ok(Bool(true))); 
+            assert_eq!(eval_str("(odd? 13)", &mut env), Ok(Bool(true)));
 
             // Nested expressions
             assert_eq!(
                 eval_str("(+ (+ 2 2) (+ 1 3) (* 1 4))", &mut env),
                 Ok(Integer(12))
-            ); 
+            );
             assert_eq!(
                 eval_str("(+ (+ 1) (* 2 3) (+ 5) (+ 6 (+ 7)))", &mut env),
                 Ok(Integer(25))
-            ); 
+            );
         }
 
         #[test]
@@ -435,19 +447,19 @@ mod tests {
             let mut env = Env::global();
 
             // Undefined symbols and operators
-            assert!(eval_str("hello", &mut env).is_err()); 
-            assert!(eval_str("(yolo)", &mut env).is_err()); 
-            assert!(eval_str("(-)", &mut env).is_err()); 
+            assert!(eval_str("hello", &mut env).is_err());
+            assert!(eval_str("(yolo)", &mut env).is_err());
+            assert!(eval_str("(-)", &mut env).is_err());
 
             // Invalid operator applications
-            assert!(eval_str("(1 2)", &mut env).is_err()); 
+            assert!(eval_str("(1 2)", &mut env).is_err());
 
             // Procedure checking before operands
-            assert!(eval_str("(1 (print 0))", &mut env).is_err()); 
+            assert!(eval_str("(1 (print 0))", &mut env).is_err());
 
             // Divide by zero
-            assert!(eval_str("(+ (/ 1 0))", &mut env).is_err()); 
-            assert!(eval_str("((/ 1 0) (print 5))", &mut env).is_err()); 
+            assert!(eval_str("(+ (/ 1 0))", &mut env).is_err());
+            assert!(eval_str("((/ 1 0) (print 5))", &mut env).is_err());
         }
 
         #[test]
@@ -455,21 +467,21 @@ mod tests {
             let mut env = Env::global();
 
             // Assuming `list` translates to chained pairs evaluated by Scheme
-            assert_eq!(eval_str("(car (list 1 2 3 4))", &mut env), Ok(Integer(1))); 
+            assert_eq!(eval_str("(car (list 1 2 3 4))", &mut env), Ok(Integer(1)));
             assert_eq!(
                 eval_str("(car (cdr (cdr (list 1 2 3 4))))", &mut env),
                 Ok(Integer(3))
-            ); 
+            );
 
-            assert!(eval_str("(car car)", &mut env).is_err()); 
-            assert!(eval_str("(car cdr (list 1))", &mut env).is_err()); 
+            assert!(eval_str("(car car)", &mut env).is_err());
+            assert!(eval_str("(car cdr (list 1))", &mut env).is_err());
             assert!(
                 eval_str(
                     "(* (car (cdr (cdr (list 1 2 3 4)))) (cdr (cdr (list 1 2 3 4))))",
                     &mut env
                 )
                 .is_err()
-            ); 
+            );
         }
 
         #[test]
@@ -478,50 +490,50 @@ mod tests {
 
             // Defining and looking up basic values
             assert_eq!(eval_str("(define size 2)", &mut env), Ok(sym("size"))); // Standard CS61A returns the symbol
-            assert_eq!(eval_str("size", &mut env), Ok(Integer(2))); 
+            assert_eq!(eval_str("size", &mut env), Ok(Integer(2)));
 
             // Re-evaluating existing definitions
-            assert_eq!(eval_str("(define x (+ 2 3))", &mut env), Ok(sym("x"))); 
-            assert_eq!(eval_str("x", &mut env), Ok(Integer(5))); 
-            assert_eq!(eval_str("(define x (+ 2 7))", &mut env), Ok(sym("x"))); 
-            assert_eq!(eval_str("x", &mut env), Ok(Integer(9))); 
+            assert_eq!(eval_str("(define x (+ 2 3))", &mut env), Ok(sym("x")));
+            assert_eq!(eval_str("x", &mut env), Ok(Integer(5)));
+            assert_eq!(eval_str("(define x (+ 2 7))", &mut env), Ok(sym("x")));
+            assert_eq!(eval_str("x", &mut env), Ok(Integer(9)));
 
             // Invalid define
-            assert!(eval_str("(define 0 1)", &mut env).is_err()); 
-            assert!(eval_str("(define error (/ 1 0))", &mut env).is_err()); 
+            assert!(eval_str("(define 0 1)", &mut env).is_err());
+            assert!(eval_str("(define error (/ 1 0))", &mut env).is_err());
         }
 
         #[test]
         fn test_scheme_apply_api() {
-            let mut env = Env::global(); 
-            let twos = pair(Integer(2), pair(Integer(2), Nil)); 
+            let mut env = Env::global();
+            let twos = pair(Integer(2), pair(Integer(2), Nil));
 
             // Valid apply
             let plus = eval_str("+", &mut env).expect("Builtin + not found");
-            assert_eq!(apply(&plus, &twos, &mut env), Ok(Integer(4))); 
+            assert_eq!(apply(&plus, &twos, &mut env), Ok(Integer(4)));
 
             // Invalid apply (oddp expects 1 argument, not 2)
             let oddp = eval_str("odd?", &mut env).expect("Builtin odd? not found");
-            assert!(apply(&oddp, &twos, &mut env).is_err()); 
+            assert!(apply(&oddp, &twos, &mut env).is_err());
         }
 
         #[test]
         fn test_quotes_evaluation() {
             let mut env = Env::global();
 
-            assert_eq!(eval_str("(quote hello)", &mut env), Ok(sym("hello"))); 
+            assert_eq!(eval_str("(quote hello)", &mut env), Ok(sym("hello")));
             assert_eq!(
                 eval_str("'(1 2)", &mut env),
                 Ok(pair(Integer(1), pair(Integer(2), Nil)))
-            ); 
-            assert_eq!(eval_str("(car '(1 2 3))", &mut env), Ok(Integer(1))); 
+            );
+            assert_eq!(eval_str("(car '(1 2 3))", &mut env), Ok(Integer(1)));
             assert_eq!(
                 eval_str("(cdr '(1 2))", &mut env),
                 Ok(pair(Integer(2), Nil))
-            ); 
+            );
 
-            assert_eq!(eval_str("(car (car '((1))))", &mut env), Ok(Integer(1))); 
-            assert_eq!(eval_str("(quote 3)", &mut env), Ok(Integer(3))); 
+            assert_eq!(eval_str("(car (car '((1))))", &mut env), Ok(Integer(1)));
+            assert_eq!(eval_str("(quote 3)", &mut env), Ok(Integer(3)));
         }
     }
 }

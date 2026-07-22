@@ -4,6 +4,10 @@ A rust implementation of the last 61A project.
 ## TODO
 - let's not just copy that random blogpost and actually try to translate the 61a python into rust
 
+### 7/21/26
+Finally coded after 1 week. See todo comments in eval() and apply()
+- Figure out how to cleanly do variable name bindings in both envs and func args. Should probably share code for both. Use hashmap?
+
 ### 7/14/26
 Figure out how to do evals for simple cases of builtin functions like +-*/, you may want to bind their names in the global env by default. also checkout scheme_builtins.py
 
